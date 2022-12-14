@@ -12,10 +12,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import server.footballmanager.DTO.PlayerDTO;
 import server.footballmanager.Entities.Team;
 import server.footballmanager.EntityModelAssemblers.PlayerModelAssembler;
 import server.footballmanager.Exceptions.PlayerNotFoundException;
 import server.footballmanager.Entities.Player;
+import server.footballmanager.Exceptions.TeamNotFoundException;
 import server.footballmanager.Repos.PlayerRepository;
 import server.footballmanager.Repos.TeamRepository;
 
@@ -24,10 +26,12 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 @RestController
 public class PlayerController {
     private final PlayerRepository repository;
+    private final TeamRepository teamRepository;
     private final PlayerModelAssembler assembler;
 
-    PlayerController(PlayerRepository repository, PlayerModelAssembler assembler) {
+    PlayerController(PlayerRepository repository, TeamRepository teamRepository, PlayerModelAssembler assembler) {
         this.repository = repository;
+        this.teamRepository = teamRepository;
         this.assembler = assembler;
     }
     // Aggregate root
@@ -44,18 +48,19 @@ public class PlayerController {
     // end::get-aggregate-root[]
 
     @PostMapping("/players")
-    public Player newPlayer(@Valid @RequestBody Player newPlayer) {
-        return repository.save(newPlayer);
-    }
+    public Player newPlayer(/*@Valid*/ @RequestBody PlayerDTO newPlayerDTO) {
+        System.out.println(newPlayerDTO);
+        Team team = teamRepository.findById(newPlayerDTO.getTeam_id()).orElseThrow(() -> new TeamNotFoundException(newPlayerDTO.getTeam_id()));
+        Player player = new Player(
+                newPlayerDTO.getName(),
+                newPlayerDTO.getSurname(),
+                newPlayerDTO.getMonthExperience(),
+                newPlayerDTO.getYearOfBirth(),
+                team
+        );
 
-//    @PostMapping("/players/transfer")
-//    public boolean transferPlayer(@RequestParam Long player_id, @RequestParam Long newTeam_id) {
-//        boolean result = false;
-//        Player player = repository.findById(player_id).orElseThrow(()-> new PlayerNotFoundException(player_id));
-//
-//        // Team newTeam = TeamRepository.findById(player_id).orElseThrow(()-> new PlayerNotFoundException(player_id));
-//        return result;
-//    }
+        return repository.save(player);
+    }
 
     // Single item
 
@@ -68,7 +73,7 @@ public class PlayerController {
     }
 
     @PutMapping("/players/{id}")
-    public Player replacePlayer(@Valid @RequestBody Player newPlayer,@PathVariable Long id) {
+    public Player replacePlayer(@Valid @RequestBody PlayerDTO newPlayer,@PathVariable Long id) {
 
         return repository.findById(id)
                 .map(player -> {
@@ -76,12 +81,19 @@ public class PlayerController {
                     player.setSurname(newPlayer.getSurname());
                     player.setMonthExperience(newPlayer.getMonthExperience());
                     player.setYearOfBirth(newPlayer.getYearOfBirth());
-                    player.setTeam(newPlayer.getTeam());
+                    player.setTeam(teamRepository.findById(newPlayer.getTeam_id())
+                            .orElseThrow(()->new TeamNotFoundException(newPlayer.getTeam_id())));
                     return repository.save(player);
                 })
                 .orElseGet(() -> {
-                    newPlayer.setId(id);
-                    return repository.save(newPlayer);
+                    Player player = new Player(newPlayer.getName(),
+                            newPlayer.getSurname(),
+                            newPlayer.getMonthExperience(),
+                            newPlayer.getYearOfBirth(),
+                            teamRepository.findById(newPlayer.getTeam_id())
+                                    .orElseThrow(()->new TeamNotFoundException(newPlayer.getTeam_id())));
+                    player.setId(id);
+                    return repository.save(player);
                 });
     }
 

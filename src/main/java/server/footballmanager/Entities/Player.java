@@ -19,8 +19,8 @@ public class Player {
     @Min(0)
     private int yearOfBirth;
     @JsonBackReference
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(columnDefinition="bigint", name = "team_id", nullable = true)
+    @ManyToOne/*(fetch = FetchType.LAZY, optional = false)*/
+    @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
     public Player() {
